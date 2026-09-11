@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mimo · Controle de gastos</title>
+<meta name="description" content="Painel pessoal de controle de gastos: saldo, movimentações, categorias e limite mensal.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&family=Manrope:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="mobile.css">
+<link rel="icon" href="assets/nav.png">
+<script>
+  // Aplica o tema antes da primeira pintura, senão a tela pisca clara
+  // por um instante quando a preferência salva é escura.
+  try {
+    var temaInicial = localStorage.getItem("mimo.tema")
+      || (matchMedia("(prefers-color-scheme: dark)").matches ? "escuro" : "claro");
+    if (temaInicial === "escuro") document.documentElement.dataset.theme = "dark";
+  } catch (e) { /* storage bloqueado: segue no tema claro */ }
+</script>
+</head>
+<body>
+  <!-- O mascote fica definido uma vez e e reusado com <use>. As animacoes
+       acompanham o clone, porque o CSS casa com o original aqui dentro. -->
+  <svg class="mimo-defs" aria-hidden="true" focusable="false">
+    <symbol id="mimo-corpo" viewBox="0 0 320 300">
+      <g class="mascot__ear-l">
+        <path d="M94 122 C84 88 86 54 100 40 Q110 32 118 48 L156 90 Z" fill="#4e9e79" stroke="var(--gato-traco)" stroke-width="7" stroke-linejoin="round"></path>
+        <path d="M108 106 C102 82 104 62 112 54 Q118 50 122 62 L138 88 Z" fill="#f2a3ad"></path>
+      </g>
+      <g class="mascot__ear-r">
+        <path d="M226 122 C236 88 234 54 220 40 Q210 32 202 48 L164 90 Z" fill="#4e9e79" stroke="var(--gato-traco)" stroke-width="7" stroke-linejoin="round"></path>
+        <path d="M212 106 C218 82 216 62 208 54 Q202 50 198 62 L182 88 Z" fill="#f2a3ad"></path>
+      </g>
+      <path d="M60 300 C60 240 100 214 160 214 C220 214 260 240 260 300 Z" fill="#4e9e79" stroke="var(--gato-traco)" stroke-width="7" stroke-linejoin="round"></path>
+      <path d="M160 214 C188 214 210 221 226 232 C208 268 186 288 160 300 C134 288 112 268 94 232 C110 221 132 214 160 214 Z" fill="#f4f7f4" stroke="var(--gato-traco)" stroke-width="6" stroke-linejoin="round"></path>
+      <path d="M160 60 C218 60 256 98 256 156 C256 214 216 246 160 246 C104 246 64 214 64 156 C64 98 102 60 160 60 Z" fill="#4e9e79" stroke="var(--gato-traco)" stroke-width="7"></path>
+      <ellipse cx="160" cy="196" rx="35" ry="23" fill="#f4f7f4" stroke="var(--gato-traco)" stroke-width="5"></ellipse>
+      <path d="M151 188 Q160 184 169 188 Q166 198 160 200 Q154 198 151 188 Z" fill="#f2a3ad" stroke="var(--gato-traco)" stroke-width="3" stroke-linejoin="round"></path>
+      <path d="M160 199 C160 206 154 208 150 204" fill="none" stroke="var(--gato-traco)" stroke-width="4" stroke-linecap="round"></path>
+      <path d="M160 199 C160 206 166 208 170 204" fill="none" stroke="var(--gato-traco)" stroke-width="4" stroke-linecap="round"></path>
+      <g stroke="var(--gato-bigode)" stroke-width="5" stroke-linecap="round" opacity=".8">
+        <path d="M96 182 L36 172"></path>
+        <path d="M96 192 L32 194"></path>
+        <path d="M98 202 L38 216"></path>
+        <path d="M224 182 L284 172"></path>
+        <path d="M224 192 L288 194"></path>
+        <path d="M222 202 L282 216"></path>
+      </g>
+    </symbol>
+
+    <!-- Padrao: olhos redondos, que piscam -->
+    <symbol id="mimo-gato" viewBox="0 0 320 300">
+      <g class="mascot__body">
+        <use href="#mimo-corpo"></use>
+        <clipPath id="mimoOlhoE"><ellipse cx="126" cy="152" rx="27" ry="31"></ellipse></clipPath>
+        <clipPath id="mimoOlhoD"><ellipse cx="194" cy="152" rx="27" ry="31"></ellipse></clipPath>
+        <ellipse cx="126" cy="152" rx="27" ry="31" fill="#16233d"></ellipse>
+        <ellipse cx="194" cy="152" rx="27" ry="31" fill="#16233d"></ellipse>
+        <circle cx="117" cy="140" r="8.5" fill="#f4f7f4"></circle>
+        <circle cx="185" cy="140" r="8.5" fill="#f4f7f4"></circle>
+        <circle cx="133" cy="164" r="4" fill="#f4f7f4" opacity=".75"></circle>
+        <circle cx="201" cy="164" r="4" fill="#f4f7f4" opacity=".75"></circle>
+        <g clip-path="url(#mimoOlhoE)"><rect class="mascot__lid" x="98" y="119" width="56" height="66" fill="#4e9e79"></rect></g>
+        <g clip-path="url(#mimoOlhoD)"><rect class="mascot__lid" x="166" y="119" width="56" height="66" fill="#4e9e79"></rect></g>
+      </g>
+    </symbol>
+
+    <!-- Curioso: olhando para cima, uma sobrancelha erguida -->
+    <symbol id="mimo-gato-curioso" viewBox="0 0 320 300">
+      <g class="mascot__body">
+        <use href="#mimo-corpo"></use>
+        <ellipse cx="126" cy="152" rx="27" ry="31" fill="#16233d"></ellipse>
+        <ellipse cx="194" cy="152" rx="27" ry="31" fill="#16233d"></ellipse>
+        <circle cx="134" cy="136" r="8.5" fill="#f4f7f4"></circle>
+        <circle cx="202" cy="136" r="8.5" fill="#f4f7f4"></circle>
+        <circle cx="118" cy="164" r="3.5" fill="#f4f7f4" opacity=".55"></circle>
+        <circle cx="186" cy="164" r="3.5" fill="#f4f7f4" opacity=".55"></circle>
+        <path d="M176 104 Q196 94 216 106" fill="none" stroke="var(--gato-traco)" stroke-width="6" stroke-linecap="round"></path>
+      </g>
+    </symbol>
+
+    <!-- Atento: olhos apertados de quem esta procurando -->
+    <symbol id="mimo-gato-atento" viewBox="0 0 320 300">
+      <g class="mascot__body">
+        <use href="#mimo-corpo"></use>
+        <ellipse cx="126" cy="156" rx="26" ry="17" fill="#16233d"></ellipse>
+        <ellipse cx="194" cy="156" rx="26" ry="17" fill="#16233d"></ellipse>
+        <circle cx="117" cy="150" r="6" fill="#f4f7f4"></circle>
+        <circle cx="185" cy="150" r="6" fill="#f4f7f4"></circle>
+        <path d="M100 122 Q126 112 150 120" fill="none" stroke="var(--gato-traco)" stroke-width="6" stroke-linecap="round"></path>
+        <path d="M170 120 Q194 112 220 122" fill="none" stroke="var(--gato-traco)" stroke-width="6" stroke-linecap="round"></path>
+      </g>
+    </symbol>
+
+    <!-- Tranquilo: olhos fechados em arco -->
+    <symbol id="mimo-gato-feliz" viewBox="0 0 320 300">
+      <g class="mascot__body">
+        <use href="#mimo-corpo"></use>
+        <g fill="none" stroke="#16233d" stroke-width="8" stroke-linecap="round">
+          <path d="M104 160 Q126 136 148 160"></path>
+          <path d="M172 160 Q194 136 216 160"></path>
+        </g>
+      </g>
+    </symbol>
+
+    <!-- Apreensivo: so aparece quando as saidas passam as entradas no mes -->
+    <symbol id="mimo-gato-preocupado" viewBox="0 0 320 300">
+      <g class="mascot__body">
+        <use href="#mimo-corpo"></use>
+        <ellipse cx="126" cy="158" rx="25" ry="27" fill="#16233d"></ellipse>
+        <ellipse cx="194" cy="158" rx="25" ry="27" fill="#16233d"></ellipse>
+        <circle cx="118" cy="148" r="7" fill="#f4f7f4"></circle>
+        <circle cx="186" cy="148" r="7" fill="#f4f7f4"></circle>
+        <path d="M102 126 Q124 116 148 110" fill="none" stroke="var(--gato-traco)" stroke-width="6" stroke-linecap="round"></path>
+        <path d="M172 110 Q196 116 218 126" fill="none" stroke="var(--gato-traco)" stroke-width="6" stroke-linecap="round"></path>
+      </g>
+    </symbol>
+
+    <!-- Coracao do ronronar -->
+    <symbol id="mimo-coracao" viewBox="0 0 32 30">
+      <path d="M16 27.5 C4.5 19 2 12 6 7 C10 2 16 4.5 16 9 C16 4.5 22 2 26 7 C30 12 27.5 19 16 27.5 Z" fill="#e8324c" stroke="var(--gato-traco)" stroke-width="2.6" stroke-linejoin="round"></path>
+    </symbol>
+
+    <symbol id="mimo-rabo" viewBox="0 0 200 150">
+      <g class="mascot__tail-g">
+        <path d="M6 96 C64 104 116 92 138 62 C156 38 148 16 126 14 C108 12 98 26 106 38" fill="none" stroke="var(--gato-traco)" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"></path>
+        <path d="M6 96 C64 104 116 92 138 62 C156 38 148 16 126 14 C108 12 98 26 106 38" fill="none" stroke="#4e9e79" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"></path>
+        <path d="M126 16 C140 18 146 32 138 48" fill="none" stroke="#f4f7f4" stroke-width="14" stroke-linecap="round"></path>
+      </g>
+    </symbol>
+  </svg>
+
+
+<div class="preloader" id="preloader">
+  <div class="preloader__stack">
+    <img class="preloader__logo" src="assets/mimo-logo.png" alt="Mimo">
+    <div class="preloader__track"><div class="preloader__bar"></div></div>
+  </div>
+</div>
+
+<div class="app">
+
+  <header class="topbar">
+    <div class="topbar__brand">
+      <img class="topbar__logo" src="assets/mimo-logo.png" alt="Mimo">
+      <button class="drawer-toggle" id="botao-painel" type="button" title="Expandir painel lateral" aria-expanded="false" aria-controls="painel">
+        <i data-lucide="panel-left-open"></i>
+        <span id="rotulo-painel">Expandir painel</span>
+      </button>
+    </div>
+
+    <div class="topbar__meta">
+      <span class="topbar__period" id="rotulo-periodo">—</span>
+      <div class="topbar__limit">
+        <span class="eyebrow">Limite</span>
+        <b id="rotulo-limite-pct">0%</b>
+      </div>
+      <button class="theme-toggle" id="botao-tema" type="button" title="Usar tema escuro" aria-label="Usar tema escuro">
+        <i class="icone-sol" data-lucide="sun"></i>
+        <i class="icone-lua" data-lucide="moon"></i>
+      </button>
+
+      <div class="topbar__user">
+        <div class="topbar__name">
+          <strong>Vitor Gomes</strong>
+          <span>Conta pessoal</span>
+        </div>
+        <span class="topbar__avatar">
+          <svg width="46" height="46" viewBox="0 0 46 46" role="img" aria-label="Foto de perfil">
+            <rect width="46" height="46" fill="#cfd6ea"></rect>
+            <circle cx="23" cy="18" r="7.6" fill="#8e99bd"></circle>
+            <path d="M6.5 46c1.6-9.4 8.6-14.4 16.5-14.4S38 36.6 39.5 46z" fill="#8e99bd"></path>
+          </svg>
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <div class="shell">
+
+    <aside class="drawer" id="painel" hidden>
+      <div class="drawer__label">Limite mensal</div>
+      <div class="drawer__value" id="painel-saidas">—</div>
+      <div class="drawer__hint">de <span id="painel-limite">—</span> planejados</div>
+      <div class="meter"><div class="meter__fill" id="painel-barra" style="width:0%"></div></div>
+
+      <div class="drawer__split">
+        <div class="drawer__split-item">
+          <span class="eyebrow">Sobra</span>
+          <strong class="is-positive" id="painel-sobra">—</strong>
+        </div>
+        <div class="drawer__divider"></div>
+        <div class="drawer__split-item">
+          <span class="eyebrow">Média/dia</span>
+          <strong id="painel-media-dia">—</strong>
+        </div>
+      </div>
+
+      <div class="drawer__section">Regra 50 / 30 / 20</div>
+      <div class="rule-list" id="painel-regra"></div>
+
+      <div class="drawer__section">Contas em aberto</div>
+      <div class="pending-list" id="painel-pendentes"></div>
+
+      <p class="drawer__note" id="painel-leitura"></p>
+    </aside>
+
+    <main class="main">
+
+      <!-- Visão geral -->
+      <section class="view view--overview" id="view-geral" aria-label="Visão geral">
+
+        <div class="empty-month" id="mes-vazio" hidden>
+          <div class="mascote mascote--mes">
+            <svg viewBox="0 0 320 300" aria-hidden="true"><use href="#mimo-gato-feliz"></use></svg>
+          </div>
+          <p id="mes-vazio-texto"></p>
+        </div>
+
+        <div id="geral-conteudo">
+          <div class="mes-nav mes-nav--geral">
+            <button class="mes-nav__seta" type="button" data-mes="anterior" title="Mês anterior" aria-label="Mês anterior">
+              <i data-lucide="chevron-left"></i>
+            </button>
+            <span class="mes-nav__label">—</span>
+            <button class="mes-nav__seta" type="button" data-mes="proximo" title="Próximo mês" aria-label="Próximo mês">
+              <i data-lucide="chevron-right"></i>
+            </button>
+            <button class="mes-nav__hoje" type="button" data-mes="hoje" hidden>Hoje</button>
+          </div>
+          <div class="hero">
+            <div class="hero__left">
+              <span class="hero__label">Saldo disponível</span>
+              <div class="hero__balance" id="hero-saldo">
+                <div class="hero__amounts">
+                  <span class="hero__value" id="valor-saldo">—</span>
+                  <span class="hero__delta" id="valor-variacao">—</span>
+                  <span class="hero__projected" id="valor-projetado">—</span>
+                </div>
+                <div class="hero__projected-row">
+                  <div class="hero__projected-track"><div class="hero__projected-fill"></div></div>
+                  <span>Depois das pendências</span>
+                </div>
+                <p class="hero__phrase" id="frase-resumo"></p>
+
+                <div class="sparkline">
+                  <div class="sparkline__bars" id="sparkline"></div>
+                  <div class="sparkline__axis">
+                    <span>1</span>
+                    <b id="rotulo-hoje">hoje</b>
+                    <span id="rotulo-ultimo-dia">31</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="stats">
+                <div class="stat">
+                  <span class="eyebrow">Entradas</span>
+                  <strong class="is-in" id="valor-entradas">—</strong>
+                </div>
+                <div class="stat">
+                  <span class="eyebrow">Saídas</span>
+                  <strong class="is-out" id="valor-saidas">—</strong>
+                </div>
+                <div class="stat">
+                  <span class="eyebrow">Movimentações</span>
+                  <strong id="valor-total-itens">0</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="hero__right">
+              <div class="card-stage">
+
+                <!-- antes do mascote no DOM: com o mesmo z-index, os coracoes pintam atras
+
+
+                     da cabeca e so aparecem ao subir acima dela -->
+
+
+                <div class="coracoes" id="coracoes" aria-hidden="true"></div>
+
+
+
+                <div class="mascot" id="mascote-clicavel" title="Faça carinho no Mimo">
+                  <svg viewBox="0 0 320 300" width="100%" aria-hidden="true"><use id="mascote-topo" href="#mimo-gato"></use></svg>
+                </div>
+
+                <button class="card" id="cartao" type="button" title="Clique para ver o verso" aria-label="Virar cartão">
+                  <span class="card__face">
+                    <span class="card__head">
+                      <span class="card__title">
+                        <strong>Cartão Mimo</strong>
+                        <span>Total a pagar</span>
+                      </span>
+                      <img class="card__mark" src="assets/mimo-simbolo.png" alt="">
+                    </span>
+                    <span class="card__value" id="cartao-total">—</span>
+                    <span class="card__detail" id="cartao-detalhe">—</span>
+                    <span class="card__foot">
+                      <span id="cartao-vencimento">—</span>
+                      <b>MIMO</b>
+                    </span>
+                  </span>
+
+                  <span class="card__face card__face--back">
+                    <span class="card__back-head">
+                      <span>Contas pendentes</span>
+                      <span id="cartao-detalhe-verso">—</span>
+                    </span>
+                    <span class="card__list" id="cartao-lista"></span>
+                    <span class="card__foot">
+                      <span><span id="cartao-total-verso">—</span> no total</span>
+                      <b>MIMO</b>
+                    </span>
+                  </span>
+                </button>
+
+                <div class="mascot-tail">
+                  <svg viewBox="0 0 200 150" width="100%" aria-hidden="true" style="overflow: visible;"><use href="#mimo-rabo"></use></svg>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <section class="section">
+            <div class="section__head">
+              <div>
+                <h2 class="section__title">Fluxo dos últimos meses</h2>
+                <span class="section__sub" id="rotulo-intervalo"></span>
+              </div>
+              <div class="legend">
+                <span><i class="is-in"></i>Entrada</span>
+                <span><i class="is-out"></i>Saída</span>
+              </div>
+            </div>
+            <div class="chart">
+              <canvas id="grafico-meses"></canvas>
+            </div>
+          </section>
+
+          <section class="band">
+            <h2 class="band__title">Para onde o dinheiro vai</h2>
+            <div class="band__body">
+              <div class="donut">
+                <div class="mascote mascote--faixa">
+                  <svg viewBox="0 0 200 150" aria-hidden="true"><use href="#mimo-rabo"></use></svg>
+                </div>
+                <canvas id="donut-grafico"></canvas>
+                <div class="donut__hole">
+                  <div>
+                    <small>Saídas</small>
+                    <strong id="donut-total">—</strong>
+                  </div>
+                </div>
+              </div>
+              <div class="cat-legend" id="lista-categorias"></div>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section__head" style="margin-bottom:12px">
+              <h2 class="section__title">Movimentações recentes</h2>
+              <button class="link-button" type="button" data-ir="lista">Ver todas</button>
+            </div>
+            <div id="lista-recentes"></div>
+          </section>
+        </div>
+      </section>
+
+      <!-- Movimentações -->
+      <section class="view view--list" id="view-lista" aria-label="Movimentações" hidden>
+        <div class="filters">
+          <label class="sr-only" for="busca">Buscar movimentações</label>
+          <input class="search" id="busca" type="search" placeholder="Buscar por descrição ou categoria">
+          <div class="chips" id="filtros-tipo"></div>
+          <div class="chips" id="filtros-status"></div>
+        </div>
+
+        <div class="table-head-row">
+          <h2 class="section__title">Todas as movimentações</h2>
+          </span>
+          <span class="section__sub" id="rotulo-contagem"></span>
+        </div>
+
+        <div class="table-wrap">
+          <div class="table">
+            <div class="table__cols">
+              <span>Descrição</span><span>Categoria</span><span>Data</span><span>Status</span>
+              <span class="cols-end">Valor</span><span class="cols-end">Ações</span>
+            </div>
+            <div id="tabela-corpo"></div>
+            <div class="table__totals" id="tabela-totais" hidden>
+              <span class="eyebrow">Totais</span>
+              <span class="total">
+                <small class="eyebrow">Total de entradas</small>
+                <span class="is-in-text" id="total-entradas">—</span>
+              </span>
+              <span class="total">
+                <small class="eyebrow">Total de saídas</small>
+                <span class="is-out-text" id="total-saidas">—</span>
+              </span>
+              <span></span>
+              <span class="total total--end">
+                <small class="eyebrow">Saldo final</small>
+                <span class="table__value" id="total-saldo">—</span>
+              </span>
+              <span></span>
+            </div>
+            <div class="paginacao" id="paginacao" hidden>
+              <button class="paginacao__botao" id="pagina-anterior" type="button" aria-label="Página anterior">
+                <i data-lucide="chevron-left"></i>
+              </button>
+              <span class="paginacao__rotulo" id="pagina-atual">1 de 1</span>
+              <button class="paginacao__botao" id="pagina-proxima" type="button" aria-label="Próxima página">
+                <i data-lucide="chevron-right"></i>
+              </button>
+            </div>
+
+            <div class="table__empty" id="tabela-vazia" hidden>
+              <div class="mascote mascote--tabela">
+                <svg viewBox="0 0 472 344" aria-hidden="true">
+                  <g class="mascote__inclina">
+                    <use href="#mimo-gato-atento" x="0" y="30" width="320" height="300"></use>
+                  </g>
+                  <g class="mascote__lupa">
+                    <circle cx="382" cy="244" r="48" fill="#f4f7f4" opacity=".18"></circle>
+                    <circle cx="382" cy="244" r="48" fill="none" stroke="var(--gato-traco)" stroke-width="12"></circle>
+                    <path d="M416 278 L452 314" stroke="var(--gato-traco)" stroke-width="18" stroke-linecap="round"></path>
+                  </g>
+                </svg>
+              </div>
+              <div class="table__empty-texto">
+                <strong>Nenhuma movimentação encontrada</strong>
+                <span>Ajuste os filtros ou registre uma nova movimentação.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Categorias -->
+      <section class="view view--categories" id="view-categorias" aria-label="Categorias" hidden>
+        <div class="kpis">
+          <div class="mascote mascote--categorias">
+            <svg viewBox="0 0 320 300" aria-hidden="true"><use href="#mimo-gato-curioso"></use></svg>
+            <span class="mascote__pergunta" aria-hidden="true">?</span>
+          </div>
+          <div class="kpis__inner" id="indicadores"></div>
+        </div>
+        <h2 class="section__title" style="margin:34px 0 14px">Saídas por categoria</h2>
+        <!-- controla o mês desta tela e do painel; ver o gêmeo na visão geral -->
+        <div class="mes-nav">
+          <button class="mes-nav__seta" type="button" data-mes="anterior" title="Mês anterior" aria-label="Mês anterior">
+            <i data-lucide="chevron-left"></i>
+          </button>
+          <span class="mes-nav__label">—</span>
+          <button class="mes-nav__seta" type="button" data-mes="proximo" title="Próximo mês" aria-label="Próximo mês">
+            <i data-lucide="chevron-right"></i>
+          </button>
+          <button class="mes-nav__hoje" type="button" data-mes="hoje" hidden>Hoje</button>
+        </div>
+        <div id="categorias-detalhe"></div>
+      </section>
+
+    </main>
+  </div>
+
+  <div class="dock-wrap">
+    <nav class="dock" aria-label="Navegação principal">
+      <div class="dock__slot">
+        <span class="dock__tip">Visão geral</span>
+        <button class="dock__button is-on" type="button" data-ir="geral" title="Visão geral" aria-label="Visão geral">
+          <i data-lucide="layout-dashboard"></i>
+        </button>
+      </div>
+      <div class="dock__slot">
+        <span class="dock__tip">Movimentações</span>
+        <button class="dock__button" type="button" data-ir="lista" title="Movimentações" aria-label="Movimentações">
+          <i data-lucide="arrow-left-right"></i>
+        </button>
+      </div>
+      <div class="dock__slot">
+        <span class="dock__tip">Categorias</span>
+        <button class="dock__button" type="button" data-ir="categorias" title="Categorias" aria-label="Categorias">
+          <i data-lucide="pie-chart"></i>
+        </button>
+      </div>
+
+      <span class="dock__sep"></span>
+
+      <div class="dock__slot">
+        <span class="dock__tip" id="dica-painel">Expandir painel</span>
+        <button class="dock__button" id="dock-painel" type="button" title="Painel lateral" aria-label="Painel lateral">
+          <i data-lucide="panel-left"></i>
+        </button>
+      </div>
+      <div class="dock__slot">
+        <span class="dock__tip" id="dica-privacidade">Ocultar valores</span>
+        <button class="dock__button" id="botao-privacidade" type="button" title="Ocultar valores" aria-label="Ocultar valores">
+          <i class="icone-visivel" data-lucide="eye"></i>
+          <i class="icone-oculto" data-lucide="eye-off"></i>
+        </button>
+      </div>
+      <div class="dock__slot">
+        <span class="dock__tip">Exportar CSV</span>
+        <button class="dock__button" id="botao-csv" type="button" title="Exportar CSV" aria-label="Exportar CSV">
+          <i data-lucide="download"></i>
+        </button>
+      </div>
+      <div class="dock__slot">
+        <span class="dock__tip">Nova movimentação</span>
+        <button class="dock__button dock__button--primary" id="botao-nova" type="button" title="Nova movimentação" aria-label="Nova movimentação">
+          <i data-lucide="plus"></i>
+        </button>
+      </div>
+    </nav>
+  </div>
+
+  <!-- Avisos rápidos depois de cadastrar, editar ou excluir.
+       Fica fora das views, então sobrevive aos redesenhos. -->
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <!-- Modal de edição -->
+  <div class="overlay" id="overlay-form" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
+      <div class="modal__head">
+        <div>
+          <h3 class="modal__title" id="modal-titulo">Nova movimentação</h3>
+          <p class="modal__sub" id="modal-sub">Registre uma entrada ou saída da sua carteira.</p>
+        </div>
+        <button class="modal__close" type="button" data-fechar title="Fechar" aria-label="Fechar">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <div class="switch">
+        <button class="switch__option" type="button" data-type="entrada">Entrada</button>
+        <button class="switch__option is-on" type="button" data-type="saida">Saída</button>
+      </div>
+
+      <div class="form-grid">
+        <label class="field field--wide">Descrição
+          <input id="campo-descricao" type="text" placeholder="Salário, mercado, aluguel" autocomplete="off">
+        </label>
+        <label class="field">Valor
+          <input id="campo-valor" type="text" inputmode="decimal" placeholder="0,00">
+        </label>
+        <label class="field">Data
+          <!-- texto com máscara em vez de type=date: o navegador exibe a data
+               no formato da língua DELE, então em um Chrome em inglês sairia
+               09/01/2026. O botão ainda abre o calendário nativo. -->
+          <span class="campo-data">
+            <input id="campo-data" type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/aaaa" autocomplete="off">
+            <button class="campo-data__botao" id="botao-calendario" type="button" title="Escolher no calendário" aria-label="Escolher no calendário">
+              <i data-lucide="calendar"></i>
+            </button>
+            <input class="sr-only" id="campo-data-nativo" type="date" tabindex="-1" aria-hidden="true">
+          </span>
+        </label>
+        <label class="field">Categoria
+          <select id="campo-categoria"></select>
+        </label>
+        <label class="field">Status
+          <select id="campo-status">
+            <option value="pago">Concluído</option>
+            <option value="pendente">Pendente</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="parcelamento" id="bloco-parcelamento">
+
+
+        <label class="check">
+
+
+          <input type="checkbox" id="campo-parcelado">
+
+
+          <span>Compra parcelada</span>
+
+
+        </label>
+
+
+        <label class="check__qtd" id="bloco-parcelas" hidden>
+
+
+          <span>Parcelas</span>
+
+
+          <select id="campo-parcelas"></select>
+
+
+        </label>
+
+
+        <span class="parcelamento__dica" id="dica-parcelas"></span>
+
+
+      </div>
+
+
+
+      <div class="form-error" id="form-erro" hidden></div>
+
+      <div class="modal__actions">
+        <button class="btn" type="button" data-fechar>Cancelar</button>
+        <button class="btn btn--primary" id="botao-salvar" type="button">Adicionar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de exclusão -->
+  <div class="overlay overlay--danger" id="overlay-excluir" hidden>
+    <div class="modal modal--danger" role="alertdialog" aria-modal="true" aria-labelledby="excluir-titulo">
+      <h3 class="modal__title" id="excluir-titulo">Excluir movimentação</h3>
+      <p class="modal__sub" id="excluir-texto"></p>
+      <div class="modal__actions">
+        <button class="btn" type="button" id="botao-manter">Manter</button>
+        <button class="btn btn--danger" type="button" id="botao-confirmar-exclusao">Excluir</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@1.37.0/dist/umd/lucide.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
