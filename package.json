@@ -1,0 +1,11 @@
+{
+  "name": "mimo-gerenciador-de-gastos",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Gerenciador de gastos pessoais com dados salvos no navegador.",
+  "scripts": {
+    "start": "node scripts/serve.cjs",
+    "test": "node --test tests/*.test.cjs"
+  },
+  "engines": { "node": ">=18" }
+}

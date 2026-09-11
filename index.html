@@ -133,13 +133,14 @@
     </symbol>
   </svg>
 
-
 <div class="preloader" id="preloader">
   <div class="preloader__stack">
     <img class="preloader__logo" src="assets/mimo-logo.png" alt="Mimo">
     <div class="preloader__track"><div class="preloader__bar"></div></div>
   </div>
 </div>
+
+<noscript><p>Ative o JavaScript no navegador para usar o Mimo.</p></noscript>
 
 <div class="app">
 
@@ -153,7 +154,7 @@
     </div>
 
     <div class="topbar__meta">
-      <span class="topbar__period" id="rotulo-periodo">—</span>
+      <span class="topbar__period" id="rotulo-periodo">-</span>
       <div class="topbar__limit">
         <span class="eyebrow">Limite</span>
         <b id="rotulo-limite-pct">0%</b>
@@ -165,11 +166,11 @@
 
       <div class="topbar__user">
         <div class="topbar__name">
-          <strong>Vitor Gomes</strong>
-          <span>Conta pessoal</span>
+          <strong>Meu controle</strong>
+          <span>Salvo neste navegador</span>
         </div>
         <span class="topbar__avatar">
-          <svg width="46" height="46" viewBox="0 0 46 46" role="img" aria-label="Foto de perfil">
+          <svg width="46" height="46" viewBox="0 0 46 46" role="img" aria-hidden="true">
             <rect width="46" height="46" fill="#cfd6ea"></rect>
             <circle cx="23" cy="18" r="7.6" fill="#8e99bd"></circle>
             <path d="M6.5 46c1.6-9.4 8.6-14.4 16.5-14.4S38 36.6 39.5 46z" fill="#8e99bd"></path>
@@ -183,19 +184,28 @@
 
     <aside class="drawer" id="painel" hidden>
       <div class="drawer__label">Limite mensal</div>
-      <div class="drawer__value" id="painel-saidas">—</div>
-      <div class="drawer__hint">de <span id="painel-limite">—</span> planejados</div>
+      <div class="drawer__value" id="painel-saidas">-</div>
+      <div class="drawer__hint" id="painel-limite">Defina seu limite mensal</div>
+      <form class="limit-form" id="form-limite">
+        <label for="campo-limite">Limite de gastos (R$)</label>
+        <div class="limit-form__fields">
+          <input id="campo-limite" type="text" inputmode="decimal" placeholder="Sem limite" aria-describedby="limite-ajuda erro-limite">
+          <button type="submit">Salvar</button>
+        </div>
+        <small id="limite-ajuda">Deixe em branco para remover o limite.</small>
+        <span id="erro-limite" role="status"></span>
+      </form>
       <div class="meter"><div class="meter__fill" id="painel-barra" style="width:0%"></div></div>
 
       <div class="drawer__split">
         <div class="drawer__split-item">
           <span class="eyebrow">Sobra</span>
-          <strong class="is-positive" id="painel-sobra">—</strong>
+          <strong class="is-positive" id="painel-sobra">-</strong>
         </div>
         <div class="drawer__divider"></div>
         <div class="drawer__split-item">
           <span class="eyebrow">Média/dia</span>
-          <strong id="painel-media-dia">—</strong>
+          <strong id="painel-media-dia">-</strong>
         </div>
       </div>
 
@@ -209,6 +219,7 @@
     </aside>
 
     <main class="main">
+      <p class="storage-warning" id="aviso-armazenamento" role="alert" hidden></p>
 
       <!-- Visão geral -->
       <section class="view view--overview" id="view-geral" aria-label="Visão geral">
@@ -217,7 +228,7 @@
           <div class="mascote mascote--mes">
             <svg viewBox="0 0 320 300" aria-hidden="true"><use href="#mimo-gato-feliz"></use></svg>
           </div>
-          <p id="mes-vazio-texto"></p>
+          <div><p id="mes-vazio-texto"></p><button class="empty-action" id="botao-comecar" type="button">Adicionar movimentação</button></div>
         </div>
 
         <div id="geral-conteudo">
@@ -225,7 +236,7 @@
             <button class="mes-nav__seta" type="button" data-mes="anterior" title="Mês anterior" aria-label="Mês anterior">
               <i data-lucide="chevron-left"></i>
             </button>
-            <span class="mes-nav__label">—</span>
+            <span class="mes-nav__label">-</span>
             <button class="mes-nav__seta" type="button" data-mes="proximo" title="Próximo mês" aria-label="Próximo mês">
               <i data-lucide="chevron-right"></i>
             </button>
@@ -236,9 +247,9 @@
               <span class="hero__label">Saldo disponível</span>
               <div class="hero__balance" id="hero-saldo">
                 <div class="hero__amounts">
-                  <span class="hero__value" id="valor-saldo">—</span>
-                  <span class="hero__delta" id="valor-variacao">—</span>
-                  <span class="hero__projected" id="valor-projetado">—</span>
+                  <span class="hero__value" id="valor-saldo">-</span>
+                  <span class="hero__delta" id="valor-variacao">-</span>
+                  <span class="hero__projected" id="valor-projetado">-</span>
                 </div>
                 <div class="hero__projected-row">
                   <div class="hero__projected-track"><div class="hero__projected-fill"></div></div>
@@ -259,11 +270,11 @@
               <div class="stats">
                 <div class="stat">
                   <span class="eyebrow">Entradas</span>
-                  <strong class="is-in" id="valor-entradas">—</strong>
+                  <strong class="is-in" id="valor-entradas">-</strong>
                 </div>
                 <div class="stat">
                   <span class="eyebrow">Saídas</span>
-                  <strong class="is-out" id="valor-saidas">—</strong>
+                  <strong class="is-out" id="valor-saidas">-</strong>
                 </div>
                 <div class="stat">
                   <span class="eyebrow">Movimentações</span>
@@ -277,13 +288,9 @@
 
                 <!-- antes do mascote no DOM: com o mesmo z-index, os coracoes pintam atras
 
-
                      da cabeca e so aparecem ao subir acima dela -->
 
-
                 <div class="coracoes" id="coracoes" aria-hidden="true"></div>
-
-
 
                 <div class="mascot" id="mascote-clicavel" title="Faça carinho no Mimo">
                   <svg viewBox="0 0 320 300" width="100%" aria-hidden="true"><use id="mascote-topo" href="#mimo-gato"></use></svg>
@@ -293,15 +300,15 @@
                   <span class="card__face">
                     <span class="card__head">
                       <span class="card__title">
-                        <strong>Cartão Mimo</strong>
+                        <strong>Contas a pagar</strong>
                         <span>Total a pagar</span>
                       </span>
                       <img class="card__mark" src="assets/mimo-simbolo.png" alt="">
                     </span>
-                    <span class="card__value" id="cartao-total">—</span>
-                    <span class="card__detail" id="cartao-detalhe">—</span>
+                    <span class="card__value" id="cartao-total">-</span>
+                    <span class="card__detail" id="cartao-detalhe">-</span>
                     <span class="card__foot">
-                      <span id="cartao-vencimento">—</span>
+                      <span id="cartao-vencimento">-</span>
                       <b>MIMO</b>
                     </span>
                   </span>
@@ -309,11 +316,11 @@
                   <span class="card__face card__face--back">
                     <span class="card__back-head">
                       <span>Contas pendentes</span>
-                      <span id="cartao-detalhe-verso">—</span>
+                      <span id="cartao-detalhe-verso">-</span>
                     </span>
                     <span class="card__list" id="cartao-lista"></span>
                     <span class="card__foot">
-                      <span><span id="cartao-total-verso">—</span> no total</span>
+                      <span><span id="cartao-total-verso">-</span> no total</span>
                       <b>MIMO</b>
                     </span>
                   </span>
@@ -354,7 +361,7 @@
                 <div class="donut__hole">
                   <div>
                     <small>Saídas</small>
-                    <strong id="donut-total">—</strong>
+                    <strong id="donut-total">-</strong>
                   </div>
                 </div>
               </div>
@@ -398,16 +405,16 @@
               <span class="eyebrow">Totais</span>
               <span class="total">
                 <small class="eyebrow">Total de entradas</small>
-                <span class="is-in-text" id="total-entradas">—</span>
+                <span class="is-in-text" id="total-entradas">-</span>
               </span>
               <span class="total">
                 <small class="eyebrow">Total de saídas</small>
-                <span class="is-out-text" id="total-saidas">—</span>
+                <span class="is-out-text" id="total-saidas">-</span>
               </span>
               <span></span>
               <span class="total total--end">
                 <small class="eyebrow">Saldo final</small>
-                <span class="table__value" id="total-saldo">—</span>
+                <span class="table__value" id="total-saldo">-</span>
               </span>
               <span></span>
             </div>
@@ -435,8 +442,8 @@
                 </svg>
               </div>
               <div class="table__empty-texto">
-                <strong>Nenhuma movimentação encontrada</strong>
-                <span>Ajuste os filtros ou registre uma nova movimentação.</span>
+                <strong id="vazio-titulo">Nenhuma movimentação cadastrada</strong>
+                <span id="vazio-descricao">Use o botão + para registrar sua primeira entrada ou saída.</span>
               </div>
             </div>
           </div>
@@ -458,13 +465,14 @@
           <button class="mes-nav__seta" type="button" data-mes="anterior" title="Mês anterior" aria-label="Mês anterior">
             <i data-lucide="chevron-left"></i>
           </button>
-          <span class="mes-nav__label">—</span>
+          <span class="mes-nav__label">-</span>
           <button class="mes-nav__seta" type="button" data-mes="proximo" title="Próximo mês" aria-label="Próximo mês">
             <i data-lucide="chevron-right"></i>
           </button>
           <button class="mes-nav__hoje" type="button" data-mes="hoje" hidden>Hoje</button>
         </div>
-        <div id="categorias-detalhe"></div>
+        <p class="empty-line" id="categorias-vazias">As categorias aparecem quando você registra uma saída neste mês.</p>
+          <div id="categorias-detalhe"></div>
       </section>
 
     </main>
@@ -575,37 +583,25 @@
 
       <div class="parcelamento" id="bloco-parcelamento">
 
-
         <label class="check">
-
 
           <input type="checkbox" id="campo-parcelado">
 
-
           <span>Compra parcelada</span>
 
-
         </label>
-
 
         <label class="check__qtd" id="bloco-parcelas" hidden>
 
-
           <span>Parcelas</span>
-
 
           <select id="campo-parcelas"></select>
 
-
         </label>
-
 
         <span class="parcelamento__dica" id="dica-parcelas"></span>
 
-
       </div>
-
-
 
       <div class="form-error" id="form-erro" hidden></div>
 
@@ -630,8 +626,8 @@
 
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/lucide@1.37.0/dist/umd/lucide.min.js"></script>
+<script src="assets/vendor/chart.umd.min.js"></script>
+<script src="assets/vendor/lucide.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

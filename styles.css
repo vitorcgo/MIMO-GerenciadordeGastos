@@ -490,7 +490,7 @@ button:focus-visible {
 .mascote--mes { width: 46px; }
 
 /* Movimentações vazias: a cabeça pende de um lado para o outro e a lupa
-   varre junto, no mesmo compasso — o gesto de procurar e não achar. */
+   varre junto, no mesmo compasso - o gesto de procurar e não achar. */
 .mascote--tabela { width: 188px; }
 
 /* carinho no mascote: vibra, fecha os olhos e solta coracoes */
@@ -1260,3 +1260,14 @@ button:focus-visible {
 .btn--danger:hover { transform: translateY(-2px); background: rgba(var(--out-rgb), 0.22); }
 
 /* Os ajustes para telas menores ficam todos em mobile.css */
+
+.limit-form { margin: 16px 0; display: grid; gap: 7px; font-size: 12px; }
+.limit-form label { color: var(--ink); font-weight: 600; }
+.limit-form__fields { display: flex; gap: 8px; }
+.limit-form input { min-width: 0; width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; font-size: 16px; }
+.limit-form button, .empty-action { padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; cursor: pointer; }
+.limit-form button:hover, .empty-action:hover { border-color: var(--muted); }
+.limit-form small { color: var(--muted); line-height: 1.5; }
+#erro-limite { color: var(--out); }
+.empty-action { margin-top: 10px; font-size: 13px; font-weight: 600; }
+.storage-warning { padding: 16px; border: 1px solid var(--out); border-radius: 12px; background: var(--surface); color: var(--ink); line-height: 1.6; }

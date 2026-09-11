@@ -1,15 +1,14 @@
 /* ==========================================================================
-   Mimo — adaptações para telas menores
+   Mimo - adaptações para telas menores
    Carregado depois do styles.css, que continua sendo a versão desktop.
 
    Cortes:
-   1080px  tablet — o painel lateral vira sobreposição
+   1080px  tablet - o painel lateral vira sobreposição
     900px  o topo deixa de ser lado a lado
-    720px  celular — dock compacto, tabela em cartões, painel em tela cheia
+    720px  celular - dock compacto, tabela em cartões, painel em tela cheia
     380px  celular pequeno
    hover:none  ajustes para toque, onde não existe passar o mouse
    ========================================================================== */
-
 
 /* ---------- 1080px: o painel lateral passa a flutuar sobre o conteúdo ---- */
 
@@ -48,7 +47,6 @@
   .mascote--faixa { left: -10px; width: 130px; }
 }
 
-
 /* ---------- 900px: topo em coluna única ---------------------------------- */
 
 @media (max-width: 900px) {
@@ -58,7 +56,6 @@
   .hero__value { font-size: 52px; }
   .hero__right { padding-top: 168px; }
 }
-
 
 /* ---------- 720px: celular ---------------------------------------------- */
 
@@ -78,7 +75,7 @@
 
   /* fixed, e não sticky: .app tem overflow-x hidden, o que torna .app o
      container de rolagem do sticky. Como quem rola é o documento, a barra
-     não grudava — subia junto com a página e deixava uma faixa de conteúdo
+     não grudava - subia junto com a página e deixava uma faixa de conteúdo
      aparecendo acima do painel lateral. */
   .app { padding-top: var(--topbar-h); }
   .topbar {
@@ -156,7 +153,7 @@
   .hero__phrase { font-size: 13.5px; }
   .sparkline { margin-top: 22px; }
 
-  /* a sobra depende de :hover, que não existe no toque — ver bloco final */
+  /* a sobra depende de :hover, que não existe no toque - ver bloco final */
 
   .stats {
     display: grid;
@@ -342,7 +339,6 @@
   .band::before, .kpis::before { left: -18px; right: -18px; }
 }
 
-
 /* ---------- 380px: celular pequeno -------------------------------------- */
 
 @media (max-width: 380px) {
@@ -368,11 +364,10 @@
   .mascot-tail { display: none; }
 }
 
-
 /* ---------- toque: nada aqui depende de passar o mouse ------------------- */
 
 @media (hover: none) {
-  /* a barra de "sobra" só aparecia no hover — no toque fica sempre visível */
+  /* a barra de "sobra" só aparecia no hover - no toque fica sempre visível */
   .hero__projected-fill { width: var(--projected, 0%); }
   .hero__balance .hero__projected { color: var(--accent-ink); }
 

@@ -18,12 +18,9 @@
   const ESSENCIAIS = ["Moradia", "Mercado", "Transporte", "Saúde"];
   const DESEJOS = ["Lazer", "Assinaturas", "Outros"];
 
-  const LIMITE_MENSAL = 2000;
-  // v2: o seed mudou (menos lançamentos, valores menores). Subir a versão faz
-  // quem já tinha dados da v1 recomeçar do exemplo novo, em vez de ficar preso
-  // a um mês antigo e ver o painel vazio.
   const STORAGE_KEY = "mimo.itens.v2";
   const TEMA_KEY = "mimo.tema";
+  const LIMITE_KEY = "mimo.limite";
 
   const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -35,32 +32,6 @@
   const HOJE_ISO = isoDe(HOJE);
   const MES_REF = HOJE_ISO.slice(0, 7);
   const DIA_HOJE = HOJE.getDate();
-  const DIAS_NO_MES = new Date(HOJE.getFullYear(), HOJE.getMonth() + 1, 0).getDate();
-
-  // Monta a data de um exemplo a partir de quantos meses atrás ele fica
-  const dataSeed = (mesesAtras, dia) => {
-    const mes = new Date(HOJE.getFullYear(), HOJE.getMonth() - mesesAtras, 1);
-    const ultimoDia = new Date(mes.getFullYear(), mes.getMonth() + 1, 0).getDate();
-    return `${mes.getFullYear()}-${pad(mes.getMonth() + 1)}-${pad(Math.min(dia, ultimoDia))}`;
-  };
-
-  // Exemplos da primeira visita. As datas são relativas ao mês atual: se fossem
-  // fixas, o painel abriria vazio assim que o mês virasse.
-  const SEED = [
-    { id: 1, tipo: "entrada", descricao: "Salário", categoria: "Salário", valor: 3200, data: dataSeed(0, 5), status: "pago" },
-    { id: 2, tipo: "saida", descricao: "Aluguel", categoria: "Moradia", valor: 950, data: dataSeed(0, 6), status: "pago" },
-    { id: 3, tipo: "saida", descricao: "Mercado", categoria: "Mercado", valor: 380, data: dataSeed(0, 12), status: "pago" },
-    { id: 4, tipo: "saida", descricao: "Assinaturas", categoria: "Assinaturas", valor: 55, data: dataSeed(0, 20), status: "pendente" },
-    { id: 5, tipo: "entrada", descricao: "Salário", categoria: "Salário", valor: 3200, data: dataSeed(1, 5), status: "pago" },
-    { id: 6, tipo: "saida", descricao: "Aluguel", categoria: "Moradia", valor: 950, data: dataSeed(1, 6), status: "pago" },
-    { id: 7, tipo: "saida", descricao: "Mercado", categoria: "Mercado", valor: 420, data: dataSeed(1, 14), status: "pago" },
-    { id: 8, tipo: "saida", descricao: "Curso online", categoria: "Educação", valor: 120, data: dataSeed(1, 22), status: "pendente" },
-    { id: 9, tipo: "entrada", descricao: "Salário", categoria: "Salário", valor: 3200, data: dataSeed(2, 5), status: "pago" },
-    { id: 10, tipo: "saida", descricao: "Aluguel", categoria: "Moradia", valor: 950, data: dataSeed(2, 6), status: "pago" },
-    { id: 11, tipo: "saida", descricao: "Transporte", categoria: "Transporte", valor: 210, data: dataSeed(2, 11), status: "pago" },
-    { id: 12, tipo: "entrada", descricao: "Freelance", categoria: "Freelance", valor: 600, data: dataSeed(3, 8), status: "pago" },
-    { id: 13, tipo: "saida", descricao: "Cinema", categoria: "Lazer", valor: 90, data: dataSeed(3, 16), status: "pago" }
-  ];
 
   // Devolve a chave do mês anterior no formato ano e mês
   const mesAnterior = chave => {
@@ -82,9 +53,11 @@
 
   // Converte um valor digitado no formato brasileiro em número
   const parseNum = texto => {
-    const limpo = String(texto).replace(/\s/g, "").replace(/\./g, "").replace(",", ".");
-    const n = parseFloat(limpo);
-    return Number.isNaN(n) ? NaN : n;
+    const entrada = String(texto).trim();
+    if (!/^(?:\d+|\d{1,3}(?:\.\d{3})+)(?:,\d{1,2})?$/.test(entrada)) return NaN;
+    const limpo = entrada.replace(/\./g, "").replace(",", ".");
+    const n = Number(limpo);
+    return Number.isFinite(n) && Number.isSafeInteger(Math.round(n * 100)) ? n : NaN;
   };
 
   // "2026-09-01" -> "01/09/2026"
@@ -153,14 +126,37 @@
     parcelas: "2"
   });
 
-  // Lê as movimentações salvas no navegador ou usa a lista de exemplo
+  let avisoArmazenamento = "";
+  let leituraInvalida = false;
+
+  const itemValido = item => item && Number.isSafeInteger(item.id) && item.id > 0
+    && ["entrada", "saida"].includes(item.tipo)
+    && typeof item.descricao === "string" && typeof item.categoria === "string"
+    && Number.isFinite(item.valor) && item.valor > 0
+    && typeof item.data === "string" && /^\d{4}-\d{2}-\d{2}$/.test(item.data)
+    && isoDeBr(dataBr(item.data)) === item.data
+    && ["pago", "pendente"].includes(item.status);
+
   const carregarItens = () => {
     try {
       const bruto = localStorage.getItem(STORAGE_KEY);
-      const salvos = bruto ? JSON.parse(bruto) : null;
-      return Array.isArray(salvos) && salvos.length ? salvos : [...SEED];
+      if (bruto === null) return [];
+      const salvos = JSON.parse(bruto);
+      if (!Array.isArray(salvos) || !salvos.every(itemValido)) throw new Error("Dados inválidos");
+      return salvos;
     } catch (e) {
-      return [...SEED];
+      leituraInvalida = true;
+      avisoArmazenamento = "Não foi possível ler os dados salvos. Os registros locais foram preservados. Consulte a seção de recuperação no README antes de continuar.";
+      return [];
+    }
+  };
+
+  const carregarLimite = () => {
+    try {
+      const valor = Number(localStorage.getItem(LIMITE_KEY));
+      return Number.isFinite(valor) && valor > 0 ? valor : null;
+    } catch (e) {
+      return null;
     }
   };
 
@@ -179,12 +175,18 @@
     }
   };
 
-  // Grava as movimentações no navegador
   const persistir = itens => {
     try {
+      if (leituraInvalida) throw new Error("Leitura indisponível");
       localStorage.setItem(STORAGE_KEY, JSON.stringify(itens));
+      avisoArmazenamento = "";
+      return true;
     } catch (e) {
-      // sem acesso ao armazenamento, a aplicação segue apenas em memória
+      avisoArmazenamento = leituraInvalida ? avisoArmazenamento
+        : "Não foi possível salvar no navegador. Libere espaço ou permita o armazenamento local e tente novamente.";
+      state = { ...state, erro: avisoArmazenamento };
+      render();
+      return false;
     }
   };
 
@@ -193,6 +195,7 @@
   let state = {
     view: "geral",
     itens: carregarItens(),
+    limite: carregarLimite(),
     // mês em foco na visão geral, no painel e em categorias; navegável
     mesRef: MES_REF,
     pagina: 1,
@@ -210,13 +213,11 @@
     form: formVazio()
   };
 
-  // Cria um estado novo a partir do anterior e redesenha a tela
   const setState = patch => {
     state = { ...state, ...patch };
     render();
   };
 
-  // Atualiza um campo do formulário e limpa a mensagem de erro
   const setForm = patch => setState({ form: { ...state.form, ...patch }, erro: "" });
 
   // Mexer em filtro ou busca muda o tamanho da lista: voltar à primeira página
@@ -313,7 +314,6 @@
         || i.categoria.toLowerCase().includes(busca));
   };
 
-  // Calcula tudo o que a tela precisa a partir do estado atual
   const derivar = () => {
     const ordenados = ordenar(state.itens);
     const mes = doMesRef(ordenados);
@@ -324,20 +324,18 @@
     // Quanto o mês rendeu por si só: é isto que zera quando o mês vira
     const resultado = entradas - saidas;
 
-    // O saldo, não. Ele é acumulado: soma tudo que já aconteceu até o fim do
-    // mês em foco. O dinheiro de quem usa não desaparece no dia 1º.
-    // Datas ISO comparam como texto, e nenhum dia passa de 31.
+    // Saldo disponível considera apenas registros concluídos até o fim do mês.
     const ateAqui = ordenados.filter(i => i.data <= `${state.mesRef}-31`);
-    const saldo = somaTipo(ateAqui, "entrada") - somaTipo(ateAqui, "saida");
+    const realizados = ateAqui.filter(i => i.status === "pago");
+    const saldo = somaTipo(realizados, "entrada") - somaTipo(realizados, "saida");
 
-    // Conta em aberto também não deixa de existir quando o mês vira:
-    // uma pendência de agosto continua devendo em setembro.
+    // Pendências de meses anteriores continuam em aberto.
     const pendentes = ateAqui
       .filter(i => i.tipo === "saida" && i.status === "pendente")
       .sort((a, b) => (a.data < b.data ? -1 : 1));
     const aPagar = somaValores(pendentes);
 
-    const ateMesAnterior = ordenados.filter(i => i.data <= `${mesAnterior(state.mesRef)}-31`);
+    const ateMesAnterior = ordenados.filter(i => i.status === "pago" && i.data <= `${mesAnterior(state.mesRef)}-31`);
     const saldoAnt = somaTipo(ateMesAnterior, "entrada") - somaTipo(ateMesAnterior, "saida");
     const variacao = saldoAnt ? Math.round(((saldo - saldoAnt) / Math.abs(saldoAnt)) * 100) : 0;
 
@@ -401,8 +399,8 @@
         { nome: "Futuro", valor: futuro, cor: "#10a88f" }
       ],
       baseRegra: essenciais + desejos + futuro || 1,
-      limite: LIMITE_MENSAL,
-      limitePct: pct(saidas, LIMITE_MENSAL),
+      limite: state.limite,
+      limitePct: state.limite ? pct(saidas, state.limite) : 0,
       dias: porDia(mes),
       visiveis
     };
@@ -506,7 +504,6 @@
     if (window.lucide) lucide.createIcons({ root: raiz, attrs: { "stroke-width": 1.7 } });
   };
 
-  // Desenha o cabeçalho e o estado dos botões
   const renderCabecalho = d => {
     const [ano, mes] = state.mesRef.split("-");
     $("#rotulo-periodo").textContent = `${MESES_LONGOS[Number(mes) - 1]} de ${ano}`;
@@ -520,7 +517,7 @@
     document.querySelectorAll('[data-mes="proximo"]').forEach(b => { b.disabled = state.mesRef >= ultimo; });
     // atalho de volta ao mês corrente, escondido quando já se está nele
     document.querySelectorAll('[data-mes="hoje"]').forEach(b => { b.hidden = d.ehMesAtual; });
-    $("#rotulo-limite-pct").textContent = `${d.limitePct}%`;
+    $("#rotulo-limite-pct").textContent = d.limite ? `${d.limitePct}%` : "Não definido";
     $("#rotulo-painel").textContent = state.drawer ? "Recolher painel" : "Expandir painel";
     $("#dica-painel").textContent = state.drawer ? "Recolher painel" : "Expandir painel";
     $("#dica-privacidade").textContent = state.privado ? "Mostrar valores" : "Ocultar valores";
@@ -536,7 +533,6 @@
     $("#botao-tema").setAttribute("aria-label", rotuloTema);
   };
 
-  // Desenha o painel lateral com limite, sobra e contas em aberto
   const renderPainel = d => {
     const painel = $("#painel");
     painel.hidden = !state.drawer;
@@ -545,9 +541,9 @@
     const sobra = Math.max(0, d.limite - d.saidas);
 
     escreverValor("#painel-saidas", d.saidas);
-    $("#painel-limite").textContent = fmt(d.limite);
+    $("#painel-limite").textContent = d.limite ? `${fmt(d.limite)} planejados` : "Defina seu limite mensal";
     $("#painel-barra").style.width = `${Math.min(100, d.limitePct)}%`;
-    $("#painel-sobra").textContent = fmt(sobra);
+    $("#painel-sobra").textContent = d.limite ? fmt(sobra) : "-";
     $("#painel-media-dia").textContent = fmt(d.saidas / d.diasCorridos);
 
     $("#painel-regra").innerHTML = d.regra
@@ -574,12 +570,13 @@
         .join("")
       : `<div class="empty-line">Nenhuma conta pendente neste mês.</div>`;
 
-    $("#painel-leitura").textContent = d.limitePct > 100
+    $("#painel-leitura").textContent = !d.limite
+      ? "Defina um limite para acompanhar quanto ainda pode gastar no mês."
+      : d.limitePct > 100
       ? `As saídas passaram o limite planejado em ${d.limitePct - 100}%. Reveja as categorias com maior peso antes do fechamento.`
       : `Ainda restam ${fmt(Math.max(0, d.limite - d.saidas))} dentro do limite planejado, com ${d.pendentes.length} conta(s) em aberto para quitar.`;
   };
 
-  // Desenha a barra de cada dia do mês
   const renderSparkline = d => {
     const maxDia = Object.values(d.dias)
       .reduce((max, { entradas, saidas }) => Math.max(max, entradas + saidas), 1);
@@ -601,7 +598,6 @@
     $("#rotulo-ultimo-dia").textContent = String(d.diasDoMes);
   };
 
-  // Desenha o cartão com o total a pagar e as contas pendentes
   const renderCartao = d => {
     $("#cartao").classList.toggle("is-flipped", state.flip);
     const detalhe = `${d.pendentes.length} ${d.pendentes.length === 1 ? "conta pendente" : "contas pendentes"}`;
@@ -651,7 +647,6 @@
     displayColors: true
   });
 
-  // Desenha o gráfico de entradas e saídas dos últimos meses
   const renderGrafico = d => {
     const [primeiro] = d.serie;
     const ultimo = d.serie[d.serie.length - 1];
@@ -716,9 +711,8 @@
     });
   };
 
-  // Desenha o gráfico de rosca e a legenda das categorias
   const renderDonut = d => {
-    const topCategorias = d.categorias.slice(0, 5);
+    const topCategorias = d.categorias;
     const semDados = topCategorias.length === 0;
 
     escreverValor("#donut-total", d.saidas);
@@ -783,7 +777,6 @@
       .join("");
   };
 
-  // Monta o HTML de uma linha da lista de movimentações recentes
   const linhaRecente = (it, indice) => `
     <div class="recent" style="--i:${indice}">
       <div class="badge ${it.classeCor}" style="background:${it.iconBg}">${it.sinal}</div>
@@ -796,26 +789,26 @@
       <span class="recent__value ${it.classeCor}">${esc(it.valorFmt)}</span>
     </div>`;
 
-  // Desenha a visão geral com saldo, totais e movimentações recentes
   const renderGeral = d => {
     const vazio = d.mes.length === 0;
     const mes = state.mesRef.slice(5);
 
-    // O aviso é uma faixa acima do painel, e não uma tela cheia: quando o mês
-    // vira, o gráfico dos 12 meses, o histórico recente e o cartão continuam
-    // tendo o que mostrar. Esconder tudo deixava o app parecendo quebrado.
+    // Mantém o histórico visível mesmo quando o mês selecionado está vazio.
     $("#mes-vazio").hidden = !vazio;
     $("#mes-vazio-texto").textContent =
-      `${MESES_LONGOS[Number(mes) - 1]} ainda está em silêncio. Registre a primeira movimentação do mês.`;
+      state.itens.length
+        ? `Nenhuma movimentação em ${MESES_LONGOS[Number(mes) - 1].toLowerCase()}.`
+        : "Comece registrando uma entrada ou saída. Seus dados ficam neste navegador.";
     // a frase do topo repetiria o mesmo recado logo abaixo da faixa
     $("#frase-resumo").hidden = vazio;
 
-    const projetado = Math.max(0, d.saldo - d.aPagar);
+    const projetado = d.saldo - d.aPagar;
 
     escreverValor("#valor-saldo", d.saldo);
+    $("#valor-variacao").hidden = !d.ordenados.some(i => i.status === "pago" && i.data.slice(0, 7) < state.mesRef);
     $("#valor-variacao").textContent = `${d.variacao >= 0 ? "+" : ""}${d.variacao}% vs ${MESES[Number(mesAnterior(state.mesRef).slice(5)) - 1]}`;
     $("#valor-variacao").classList.toggle("is-negative", d.variacao < 0);
-    $("#valor-projetado").textContent = `sobra ${fmt(projetado)}`;
+    $("#valor-projetado").textContent = `${projetado < 0 ? "faltam" : "sobra"} ${fmt(Math.abs(projetado))}`;
     $("#hero-saldo").style.setProperty(
       "--projected",
       `${d.saldo > 0 ? Math.max(2, pct(projetado, d.saldo)) : 0}%`
@@ -828,18 +821,10 @@
     escreverValor("#valor-saidas", d.saidas);
     $("#valor-total-itens").textContent = String(d.mes.length);
 
-    // o mascote do topo vira indicador: só muda de cara quando o mês fecha no
-
-
-    // vermelho. Durante o carinho quem manda na expressão é o ronronar.
-
+    // Preserva a animação de carinho durante atualizações do saldo.
 
     if (!ronronando) {
-
-
       $("#mascote-topo").setAttribute("href", d.resultado < 0 ? "#mimo-gato-preocupado" : "#mimo-gato");
-
-
     }
 
     renderSparkline(d);
@@ -847,14 +832,14 @@
     renderGrafico(d);
     renderDonut(d);
 
-    $("#lista-recentes").innerHTML = d.ordenados.slice(0, 6).map(decorar).map(linhaRecente).join("");
+    $("#lista-recentes").innerHTML = d.ordenados.length
+      ? d.ordenados.slice(0, 6).map(decorar).map(linhaRecente).join("")
+      : '<p class="empty-line">Suas movimentações aparecerão aqui.</p>';
   };
 
-  // Monta o HTML de um botão de filtro
   const chip = (ativo, label, grupo, valor) =>
     `<button class="chip${ativo ? " is-on" : ""}" type="button" data-filtro="${grupo}" data-valor="${valor}">${esc(label)}</button>`;
 
-  // Desenha a lista completa com filtros e totais
   const renderLista = d => {
     $("#filtros-tipo").innerHTML = [
       ["Tudo", "todos"], ["Entradas", "entrada"], ["Saídas", "saida"]
@@ -913,6 +898,8 @@
     const temItens = d.visiveis.length > 0;
     $("#tabela-totais").hidden = !temItens;
     $("#tabela-vazia").hidden = temItens;
+    $("#vazio-titulo").textContent = state.itens.length ? "Nenhuma movimentação encontrada" : "Nenhuma movimentação cadastrada";
+    $("#vazio-descricao").textContent = state.itens.length ? "Ajuste os filtros para encontrar seus registros." : "Use o botão + para registrar sua primeira entrada ou saída.";
     if (!temItens) return;
 
     $("#total-entradas").textContent = `+ ${fmt(somaTipo(d.visiveis, "entrada"))}`;
@@ -922,7 +909,6 @@
     );
   };
 
-  // Desenha os indicadores e o detalhamento por categoria
   const renderCategorias = d => {
     const taxa = d.entradas ? Math.round((d.resultado / d.entradas) * 100) : 0;
 
@@ -940,6 +926,7 @@
         </div>`)
       .join("");
 
+    $("#categorias-vazias").hidden = d.categorias.length > 0;
     $("#categorias-detalhe").innerHTML = d.categorias
       .map(({ nome, valor, cor }, indice) => {
         const n = d.mes.filter(i => i.tipo === "saida" && i.categoria === nome).length;
@@ -958,7 +945,6 @@
       .join("");
   };
 
-  // Desenha o formulário de cadastro e edição
   const renderModal = () => {
     const overlay = $("#overlay-form");
     overlay.hidden = !state.modal;
@@ -986,7 +972,7 @@
     sincronizar("#campo-categoria", form.categoria);
     sincronizar("#campo-status", form.status);
 
-        // parcelar só aparece ao criar; ao editar, altera-se uma parcela só
+    // parcelar só aparece ao criar; ao editar, altera-se uma parcela só
     const parcelavel = !state.editando;
     $("#bloco-parcelamento").hidden = !parcelavel;
     $("#campo-parcelado").checked = Boolean(form.parcelado);
@@ -999,11 +985,10 @@
       ? `${qtd}× de ${fmt(dividirEmParcelas(totalDigitado, qtd)[qtd - 1])}`
       : "";
 
-$("#form-erro").hidden = !state.erro;
+    $("#form-erro").hidden = !state.erro;
     $("#form-erro").textContent = state.erro;
   };
 
-  // Desenha a confirmação de exclusão
   const renderExclusao = () => {
     const overlay = $("#overlay-excluir");
     overlay.hidden = !state.excluir;
@@ -1014,9 +999,10 @@ $("#form-erro").hidden = !state.erro;
       `"${descricao}" no valor de ${fmt(valor)} será removida do painel. A ação não pode ser desfeita.`;
   };
 
-  // Mostra a view atual e chama o desenho de cada parte da tela
   function render() {
     const d = derivar();
+    $("#aviso-armazenamento").hidden = !avisoArmazenamento;
+    $("#aviso-armazenamento").textContent = avisoArmazenamento;
 
     document.querySelectorAll("[data-ir]").forEach(botao => {
       if (botao.classList.contains("dock__button")) {
@@ -1039,7 +1025,6 @@ $("#form-erro").hidden = !state.erro;
     renderExclusao();
   }
 
-  // Abre o formulário para cadastrar uma movimentação
   const abrirNova = () => setState({
     modal: true,
     editando: null,
@@ -1047,7 +1032,6 @@ $("#form-erro").hidden = !state.erro;
     form: formVazio()
   });
 
-  // Abre o formulário preenchido com os dados de uma movimentação
   const abrirEdicao = id => {
     const item = state.itens.find(i => i.id === id);
     if (!item) return;
@@ -1059,7 +1043,6 @@ $("#form-erro").hidden = !state.erro;
     });
   };
 
-  // Fecha o formulário e descarta a edição em andamento
   const fecharModal = () => setState({ modal: false, editando: null, erro: "" });
 
   // Valida os dados e grava a movimentação, criando ou editando
@@ -1072,11 +1055,15 @@ $("#form-erro").hidden = !state.erro;
     const dataIso = isoDeBr(data);
     if (!dataIso) return setState({ erro: "Informe uma data válida, no formato dd/mm/aaaa." });
 
-    const registro = { tipo, descricao: descricao.trim(), categoria, valor: numero, data: dataIso, status };
+    const registro = { tipo, descricao: descricao.trim(), categoria, valor: Math.round(numero * 100) / 100, data: dataIso, status };
     const ultimoId = state.itens.reduce((max, i) => Math.max(max, i.id), 0);
 
     // parcelar só faz sentido ao criar; editando, mexe-se numa parcela só
     const quantas = !state.editando && parcelado ? Number(parcelas) : 1;
+    if (!Number.isInteger(quantas) || quantas < 1 || quantas > MAX_PARCELAS
+      || Math.round(numero * 100) < quantas) {
+      return setState({ erro: "Cada parcela deve ter pelo menos R$ 0,01." });
+    }
 
     // uma entrada vira N registros, um por mês, cada um com a sua fatia
     const novos = dividirEmParcelas(numero, quantas).map((fatia, i) => ({
@@ -1093,7 +1080,7 @@ $("#form-erro").hidden = !state.erro;
       ? state.itens.map(i => (i.id === state.editando ? { ...i, ...registro } : i))
       : [...novos, ...state.itens];
 
-    persistir(itens);
+    if (!persistir(itens)) return;
     // lido antes do setState, que zera o editando
     const eraEdicao = Boolean(state.editando);
     setState({ itens, modal: false, editando: null, erro: "" });
@@ -1106,10 +1093,9 @@ $("#form-erro").hidden = !state.erro;
 
   // avisa depois do setState, que e sincrono e ja redesenhou a tela
 
-  // Remove a movimentação escolhida
   const confirmarExclusao = () => {
     const itens = state.itens.filter(i => i.id !== state.excluir.id);
-    persistir(itens);
+    if (!persistir(itens)) return;
     setState({ itens, excluir: null });
     avisar("Movimentação excluída", "#mimo-gato-preocupado");
   };
@@ -1236,6 +1222,26 @@ $("#form-erro").hidden = !state.erro;
     $("#botao-painel").addEventListener("click", alternarPainel);
     $("#dock-painel").addEventListener("click", alternarPainel);
     $("#botao-nova").addEventListener("click", abrirNova);
+    $("#botao-comecar").addEventListener("click", abrirNova);
+    $("#form-limite").addEventListener("submit", evento => {
+      evento.preventDefault();
+      const campo = $("#campo-limite");
+      const limite = campo.value.trim() ? parseNum(campo.value) : null;
+      if (limite !== null && (!Number.isFinite(limite) || limite <= 0)) {
+        $("#erro-limite").textContent = "Informe um valor maior que zero ou deixe em branco.";
+        return;
+      }
+      try {
+        if (limite === null) localStorage.removeItem(LIMITE_KEY);
+        else localStorage.setItem(LIMITE_KEY, String(limite));
+      } catch (e) {
+        $("#erro-limite").textContent = "Não foi possível salvar o limite no navegador.";
+        return;
+      }
+      $("#erro-limite").textContent = "";
+      setState({ limite });
+      avisar(limite ? "Limite mensal atualizado" : "Limite mensal removido");
+    });
     $("#botao-salvar").addEventListener("click", salvar);
     $("#botao-csv").addEventListener("click", exportarCsv);
     $("#botao-manter").addEventListener("click", () => setState({ excluir: null }));
@@ -1289,7 +1295,6 @@ $("#form-erro").hidden = !state.erro;
     });
   };
 
-  // Liga os eventos, desenha a tela e esconde a abertura
   const iniciar = () => {
     if (window.Chart) {
       Chart.defaults.font.family = '"Manrope", system-ui, sans-serif';
@@ -1298,12 +1303,12 @@ $("#form-erro").hidden = !state.erro;
     }
 
     ligarEventos();
+    $("#campo-limite").value = state.limite ? String(state.limite).replace(".", ",") : "";
     render();
     desenharIcones();
 
     const preloader = $("#preloader");
-    setTimeout(() => preloader.classList.add("is-leaving"), 1150);
-    setTimeout(() => { preloader.hidden = true; }, 1750);
+    preloader.hidden = true;
   };
 
   document.addEventListener("DOMContentLoaded", iniciar);
